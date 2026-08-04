@@ -1,0 +1,21 @@
+# Binaries
+/bin
+/bin-build
+
+# Dependency directories
+/vendor/
+/pkg/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local

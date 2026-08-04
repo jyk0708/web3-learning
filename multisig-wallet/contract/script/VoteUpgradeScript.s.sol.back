@@ -1,0 +1,247 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {Script, console} from "forge-std/Script.sol";
+import {MultiSigWalletUpgradeableVote} from "../src/MultiSigWalletWithUpgradeVote.sol";
+
+/**
+ * ============================================================================
+ *  投票升级版多签钱包 — 升级脚本
+ * ============================================================================
+ *
+ *  针对 MultiSigWalletUpgradeableVote 合约的多签投票升级流程
+ *
+ *  与基础版（MultiSigWalletUpgradeable）的区别：
+ *
+ *    基础版升级：owner 直接调 upgradeTo(newImpl) → 通过
+ *    投票版升级：createUpgradeProposal → 多签确认 → executeUpgradeProposal
+ *               ↓
+ *               _authorizeUpgrade 检查 _pendingUpgradeImplementation
+ *               ↓
+ *               没有 _pendingUpgradeImplementation 标记则 revert
+ *
+ *  包含 5 个独立合约：
+ *
+ *    1. DeployV2Vote        — 部署 V2 实现合约
+ *    2. CreateUpgradeVote   — 创建升级提案（owner1）
+ *    3. ConfirmUpgradeVote   — 确认升级提案（owner2, owner3...）
+ *    4. ExecuteUpgradeVote   — 执行升级（任一 owner）
+ *    5. FullUpgradeVoteFlow  — 一键完整流程（仅本地测试）
+ *
+ *  环境变量（.env）：
+ *    PROXY_ADDRESS=0x...        代理合约地址
+ *    NEW_IMPLEMENTATION=0x...   V2 实现地址（阶段1部署后获得）
+ *    UPGRADE_PROPOSAL_ID=0      升级提案ID（阶段2创建后获得）
+ *    OWNER1_PK=0x...           owner1 私钥
+ *    OWNER2_PK=0x...           owner2 私钥
+ *    OWNER3_PK=0x...           owner3 私钥
+ *
+ * ============================================================================
+ */
+
+/**
+ * @title DeployV2Vote
+ * @dev 阶段1：部署 V2 实现合约
+ * @notice 任意账户均可执行，无需 owner 权限
+ *
+ * 使用方式：
+ *   forge script script/VoteUpgradeScript.s.sol:DeployV2Vote \
+ *     --rpc-url sepolia --broadcast -vvv
+ */
+contract DeployV2Vote is Script {
+    function run() public returns (address) {
+        vm.startBroadcast();
+
+        // 注意：V2 需要继承 MultiSigWalletUpgradeableVote
+        // 如果 V2 继承的是 MultiSigWalletUpgradeable（基础版），
+        // 则升级后 _authorizeUpgrade 的多签检查逻辑会丢失
+        MultiSigWalletUpgradeableVote v2 = new MultiSigWalletUpgradeableVote();
+
+        console.log("=== Phase 1: V2 Implementation Deployed ===");
+        console.log("Implementation address:", address(v2));
+        console.log("");
+        console.log("Save to .env: NEW_IMPLEMENTATION=%s", address(v2));
+
+        vm.stopBroadcast();
+        return address(v2);
+    }
+}
+
+/**
+ * @title CreateUpgradeVote
+ * @dev 阶段2：创建升级提案（需要 owner1 签名）
+ *
+ * 使用方式：
+ *   forge script script/VoteUpgradeScript.s.sol:CreateUpgradeVote \
+ *     --rpc-url sepolia --broadcast \
+ *     --private-key $OWNER1_PK -vvv
+ */
+contract CreateUpgradeVote is Script {
+    function run() public returns (uint256) {
+        address proxy = vm.envAddress("PROXY_ADDRESS");
+        address newImpl = vm.envAddress("NEW_IMPLEMENTATION");
+
+        vm.startBroadcast();
+
+        MultiSigWalletUpgradeableVote wallet = MultiSigWalletUpgradeableVote(proxy);
+        uint256 proposalId = wallet.createUpgradeProposal(newImpl);
+
+        console.log("=== Phase 2: Upgrade Proposal Created ===");
+        console.log("Proxy address:", proxy);
+        console.log("New implementation:", newImpl);
+        console.log("Proposal ID:", proposalId);
+        console.log("");
+        console.log("Save to .env: UPGRADE_PROPOSAL_ID=%s", proposalId);
+        console.log("Next: Each owner calls confirmUpgradeProposal(%s)", proposalId);
+
+        vm.stopBroadcast();
+        return proposalId;
+    }
+}
+
+/**
+ * @title ConfirmUpgradeVote
+ * @dev 阶段3：确认升级提案（每个 owner 分别执行）
+ *
+ * 使用方式：
+ *   # owner2 确认
+ *   forge script script/VoteUpgradeScript.s.sol:ConfirmUpgradeVote \
+ *     --rpc-url sepolia --broadcast \
+ *     --private-key $OWNER2_PK -vvv
+ *
+ *   # owner3 确认
+ *   forge script script/VoteUpgradeScript.s.sol:ConfirmUpgradeVote \
+ *     --rpc-url sepolia --broadcast \
+ *     --private-key $OWNER3_PK -vvv
+ */
+contract ConfirmUpgradeVote is Script {
+    function run() public {
+        address proxy = vm.envAddress("PROXY_ADDRESS");
+        uint256 proposalId = vm.envUint("UPGRADE_PROPOSAL_ID");
+
+        vm.startBroadcast();
+
+        MultiSigWalletUpgradeableVote wallet = MultiSigWalletUpgradeableVote(proxy);
+        wallet.confirmUpgradeProposal(proposalId);
+
+        (, uint256 confirmations, bool executed) = wallet.getUpgradeProposal(proposalId);
+        uint256 threshold = wallet.getThreshold();
+
+        console.log("=== Phase 3: Upgrade Proposal Confirmed ===");
+        console.log("Proposal ID:", proposalId);
+        console.log("Confirmations:", confirmations);
+        console.log("Threshold:", threshold);
+        console.log("Can execute:", confirmations >= threshold);
+
+        if (confirmations >= threshold) {
+            console.log("");
+            console.log("Threshold reached! Call executeUpgradeProposal(%s)", proposalId);
+        } else {
+            console.log("");
+            console.log("Need %s more confirmation(s)", threshold - confirmations);
+        }
+
+        vm.stopBroadcast();
+    }
+}
+
+/**
+ * @title ExecuteUpgradeVote
+ * @dev 阶段4：执行升级（任一 owner 签名）
+ * @notice 必须先达到多签阈值才能执行
+ *
+ * 使用方式：
+ *   forge script script/VoteUpgradeScript.s.sol:ExecuteUpgradeVote \
+ *     --rpc-url sepolia --broadcast \
+ *     --private-key $OWNER1_PK -vvv
+ */
+contract ExecuteUpgradeVote is Script {
+    function run() public {
+        address proxy = vm.envAddress("PROXY_ADDRESS");
+        uint256 proposalId = vm.envUint("UPGRADE_PROPOSAL_ID");
+
+        vm.startBroadcast();
+
+        MultiSigWalletUpgradeableVote wallet = MultiSigWalletUpgradeableVote(proxy);
+
+        // 检查是否达到阈值
+        require(wallet.canExecuteUpgrade(proposalId), "Not enough confirmations");
+
+        wallet.executeUpgradeProposal(proposalId);
+
+        console.log("=== Phase 4: Upgrade Executed! ===");
+        console.log("Proxy address:", proxy);
+        console.log("Proposal ID:", proposalId);
+
+        vm.stopBroadcast();
+    }
+}
+
+/**
+ * @title FullUpgradeVoteFlow
+ * @dev 一键完整升级流程（仅本地 Anvil 测试）
+ * @notice 生产环境请分阶段执行，每个阶段用不同 owner 的私钥
+ *
+ * 使用方式：
+ *   anvil  # 启动本地节点
+ *   forge script script/VoteUpgradeScript.s.sol:FullUpgradeVoteFlow \
+ *     --rpc-url http://localhost:8545 --broadcast -vvv \
+ *     --private-key $OWNER1_PK
+ */
+contract FullUpgradeVoteFlow is Script {
+    function run() public {
+        address proxy = vm.envAddress("PROXY_ADDRESS");
+
+        address owner1 = vm.addr(vm.envUint("OWNER1_PK"));
+        address owner2 = vm.addr(vm.envUint("OWNER2_PK"));
+        address owner3 = vm.addr(vm.envUint("OWNER3_PK"));
+
+        console.log("=== Full Upgrade Vote Flow (Local Test Only) ===");
+        console.log("Proxy:", proxy);
+        console.log("Owner1:", owner1);
+        console.log("Owner2:", owner2);
+        console.log("Owner3:", owner3);
+        console.log("");
+
+        MultiSigWalletUpgradeableVote wallet = MultiSigWalletUpgradeableVote(proxy);
+
+        // ---- 阶段1：部署 V2 实现 ----
+        vm.startBroadcast(vm.envUint("OWNER1_PK"));
+        MultiSigWalletUpgradeableVote v2 = new MultiSigWalletUpgradeableVote();
+        console.log("[Phase 1] V2 Implementation deployed:", address(v2));
+        vm.stopBroadcast();
+
+        // ---- 阶段2：owner1 创建升级提案 ----
+        vm.startBroadcast(vm.envUint("OWNER1_PK"));
+        uint256 proposalId = wallet.createUpgradeProposal(address(v2));
+        console.log("[Phase 2] Upgrade proposal created, ID:", proposalId);
+        vm.stopBroadcast();
+
+        // ---- 阶段3：owner2 确认 ----
+        vm.startBroadcast(vm.envUint("OWNER2_PK"));
+        wallet.confirmUpgradeProposal(proposalId);
+        console.log("[Phase 3] Owner2 confirmed");
+        vm.stopBroadcast();
+
+        // ---- 阶段3：owner3 确认 ----
+        vm.startBroadcast(vm.envUint("OWNER3_PK"));
+        wallet.confirmUpgradeProposal(proposalId);
+        console.log("[Phase 3] Owner3 confirmed");
+        vm.stopBroadcast();
+
+        // ---- 阶段4：owner1 执行升级 ----
+        vm.startBroadcast(vm.envUint("OWNER1_PK"));
+        wallet.executeUpgradeProposal(proposalId);
+        console.log("[Phase 4] Upgrade executed!");
+        vm.stopBroadcast();
+
+        // ---- 验证升级结果 ----
+        console.log("");
+        console.log("=== Upgrade Verification ===");
+        console.log("canExecuteUpgrade:", wallet.canExecuteUpgrade(proposalId));
+        (address impl, uint256 conf, bool exec) = wallet.getUpgradeProposal(proposalId);
+        console.log("Proposal implementation:", impl);
+        console.log("Proposal confirmations:", conf);
+        console.log("Proposal executed:", exec);
+    }
+}

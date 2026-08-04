@@ -1,6 +1,13 @@
+# Foundry build artifacts
+**/out/
+**/cache/
+
+# Foundry broadcast logs (ignore local network broadcasts and dry-runs)
+**/broadcast/*/31337/
+**/broadcast/**/dry-run/
+
 # Remix compiler artifacts
 **/artifacts/
-**/artifacts/**
 
 # Remix plugin state folders
 deps/
@@ -10,6 +17,29 @@ states/
 *.dbg.json
 *.tsbuildinfo
 
-# Optional
+# Environment files
 .env
 .env.local
+.env.*.local
+!.env.example
+
+# Go build artifacts
+**/bin/
+**/bin-build/
+*.exe
+
+# Node.js dependencies and build output
+**/node_modules/
+**/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

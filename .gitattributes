@@ -1,0 +1,53 @@
+# 统一所有文本文件行尾为 LF（仓库标准行尾）
+* text=auto eol=lf
+
+# Solidity
+*.sol text
+
+# JavaScript / TypeScript
+*.js text
+*.jsx text
+*.ts text
+*.tsx text
+*.json text
+*.mjs text
+*.cjs text
+
+# Go
+*.go text
+
+# Markdown
+*.md text
+
+# Shell
+*.sh text eol=lf
+
+# Windows 脚本保持 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 配置文件
+*.toml text
+*.yml text
+*.yaml text
+*.cfg text
+*.conf text
+*.ini text
+*.env text
+
+# 忽略二进制文件
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary

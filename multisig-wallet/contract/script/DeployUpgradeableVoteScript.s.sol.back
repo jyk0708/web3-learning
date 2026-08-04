@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {Script, console} from "forge-std/Script.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {MultiSigWalletUpgradeableVote} from "../src/MultiSigWalletWithUpgradeVote.sol";
+
+/**
+ * @title DeployUpgradeableVoteScript
+ * @dev 部署投票升级版多签钱包（实现 + 代理）
+ *
+ * 部署流程：
+ *   1. 部署 MultiSigWalletUpgradeableVote 实现合约
+ *   2. 编码 initialize() 的 calldata
+ *   3. 部署 ERC1967Proxy 代理，指向实现合约，并执行 initialize
+ *
+ * 最终用户通过代理地址与合约交互，代理地址是永久的。
+ *
+ * 使用方式：
+ *   forge script script/DeployUpgradeableVoteScript.s.sol \
+ *     --rpc-url sepolia --broadcast -vvv
+ *
+ * 环境变量（.env）：
+ *   OWNER1=0x...          owner1 地址
+ *   OWNER2=0x...          owner2 地址
+ *   OWNER3=0x...          owner3 地址
+ *   THRESHOLD=2           多签阈值
+ */
+contract DeployUpgradeableVoteScript is Script {
+    MultiSigWalletUpgradeableVote public implementation;
+    ERC1967Proxy public proxy;
+    MultiSigWalletUpgradeableVote public wallet;
+
+    function run() public {
+        // 读取环境变量
+        address owner1 = vm.envAddress("OWNER1");
+        address owner2 = vm.envAddress("OWNER2");
+        address owner3 = vm.envAddress("OWNER3");
+        uint256 threshold = vm.envUint("THRESHOLD");
+
+        address[] memory owners = new address[](3);
+        owners[0] = owner1;
+        owners[1] = owner2;
+        owners[2] = owner3;
+
+        vm.startBroadcast();
+
+        // ---- 步骤1：部署实现合约 ----
+        // 实现合约的 constructor 只调用 _disableInitializers()
+        // 不做任何状态初始化
+        implementation = new MultiSigWalletUpgradeableVote();
+        console.log("=== Step 1: Implementation Deployed ===");
+        console.log("Implementation:", address(implementation));
+
+        // ---- 步骤2：编码 initialize 的 calldata ----
+        bytes memory initData = abi.encodeWithSelector(
+            MultiSigWalletUpgradeableVote.initialize.selector,
+            owners,
+            threshold
+        );
+
+        // ---- 步骤3：部署 ERC1967Proxy 代理 ----
+        // 代理会：
+        //   1. 存储实现地址（ERC1967 实现槽）
+        //   2. delegatecall 到实现的 initialize()
+        //   3. 之后所有调用都通过代理 delegatecall 到实现
+        proxy = new ERC1967Proxy(address(implementation), initData);
+        console.log("=== Step 2: Proxy Deployed ===");
+        console.log("Proxy:", address(proxy));
+
+        // ---- 步骤4：通过代理验证初始化结果 ----
+        wallet = MultiSigWalletUpgradeableVote(payable(address(proxy)));
+        console.log("=== Step 3: Verification ===");
+        console.log("Owner count:", wallet.getOwnerCount());
+        console.log("Threshold:", wallet.getThreshold());
+        console.log("Owner1 is owner:", wallet.isOwner(owner1));
+        console.log("");
+        console.log("========================================");
+        console.log("Save to .env: PROXY_ADDRESS=%s", address(proxy));
+        console.log("========================================");
+
+        vm.stopBroadcast();
+    }
+}
