@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/utils/StorageSlot.sol";
 
 /**
  * @dev 多签钱包合约，支持升级提案和投票
@@ -47,6 +46,8 @@ contract MultiSigWalletUpgradeable is Initializable, ContextUpgradeable, UUPSUpg
     // value: 确认者地址
     // value: 是否确认
     mapping(uint256 => mapping(address => bool)) public confirmers;
+    // 当前已授权升级的实现地址（一次性，防止重放）
+    address private _pendingUpgradeImplementation;
 
     /**
      * @dev 仅允许所有者调用的修饰符
@@ -153,26 +154,13 @@ contract MultiSigWalletUpgradeable is Initializable, ContextUpgradeable, UUPSUpg
      * @param newImplementation 新的多签钱包合约地址
      */
     function _authorizeUpgrade(address newImplementation) internal onlyOwner override {
-      
-    }
-
-    /**
-     * @dev 升级代理的实现合约
-     * 强制使用 EIP-1967 标准存储槽（与代理兼容）
-     * @param newImplementation 新的实现合约地址
-     */
-    function upgradeTo(address newImplementation) public onlyProxy {
-        _authorizeUpgrade(newImplementation);
-        
-        // 验证新实现有效
-        if (newImplementation.code.length == 0) {
-            revert InvalidImplementation(newImplementation);
-        }
-        
-        // 使用 EIP-1967 标准存储槽写入实现地址
-        StorageSlot.getAddressSlot(ERC1967_IMPLEMENTATION_SLOT).value = newImplementation;
-        
-        emit Upgraded(newImplementation);
+        // 检查升级是否经过多签提案批准
+        require(
+            _pendingUpgradeImplementation == newImplementation,
+            "Upgrade must be approved by multi-sig proposal"
+        );
+        // 清除授权标记，防止重放攻击
+        _pendingUpgradeImplementation = address(0);
     }
 
     // ------------------ 多签钱包的账户管理 start ------------------

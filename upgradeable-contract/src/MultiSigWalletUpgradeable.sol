@@ -4,12 +4,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-/**
- * @dev 多签钱包合约，支持升级提案和投票
- * @notice 升级提案需要通过投票确认后才能执行
- */
-contract MultiSigWalletUpgradeableVote is Initializable, ContextUpgradeable, UUPSUpgradeable {
-    
+
+contract MultiSigWalletUpgradeable is Initializable, ContextUpgradeable, UUPSUpgradeable {
     // 交易提案的结构体
     struct Proposal {
         // 交易提案的索引

@@ -3,4 +3,14 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+# 启用 via_ir 以绕过 EVM 栈深度限制(解决 Stack too deep 错误)
+via_ir = true
+
+# Remappings: 将 import 别名映射到实际路径
+remappings = [
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+    "@chainlink/contracts/=lib/chainlink/contracts/",
+]
+
+
