@@ -32,6 +32,8 @@ states/
 **/node_modules/
 **/dist/
 
+**/lib/
+
 # IDE
 .idea/
 .vscode/
