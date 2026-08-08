@@ -8,12 +8,13 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 /**
  * @dev NFT拍卖合约，支持升级提案和投票
  */
-contract NftAuctionUpgradeable is Initializable, ContextUpgradeable, UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuard {
+contract NftAuctionUpgradeable is Initializable, ContextUpgradeable, UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuard, IERC721Receiver {
 
     struct Auction {
         // 卖家地址
@@ -259,6 +260,20 @@ contract NftAuctionUpgradeable is Initializable, ContextUpgradeable, UUPSUpgrade
     }
 
     /**
+     * @dev ERC721 安全转账回调。拍卖合约作为 NFT 托管方，需实现此接口
+     *      才能接收 safeTransferFrom 转入的 NFT，否则 CreateAuction 会 revert。
+     *      始终允许接收（返回 selector），不做额外校验。
+     */
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) external pure override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
+    /**
      * @dev 开始拍卖
      * @param auctionId 拍卖ID
      */
@@ -389,16 +404,6 @@ contract NftAuctionUpgradeable is Initializable, ContextUpgradeable, UUPSUpgrade
         require(success, "Failed to transfer money");
         // 触发退款事件
         emit RefundAuction(auctionId, bidder, amount);
-    }
-
-  
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 
     // 保留空间

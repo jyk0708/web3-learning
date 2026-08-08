@@ -1,0 +1,20 @@
+Name: nft_auction_api-api
+Host: 0.0.0.0
+Port: 8888
+
+Postgres:
+  Dsn: "host=${PG_HOST:127.0.0.1} port=${PG_PORT:5432} user=${PG_USER:postgres} password=${PG_PASSWORD:123456} dbname=nft_auction sslmode=disable TimeZone=Asia/Shanghai"
+  MaxOpenConns: 10
+  MaxIdleConns: 5
+
+Chain:
+  RpcUrl: "${CHAIN_RPC_URL:http://127.0.0.1:8545}"
+  AuctionContractAddr: "${CHAIN_AUCTION_CONTRACT_ADDR:0x1234567890abcdef1234567890abcdef12345678}"
+  # Mock NFT(ERC721)合约地址，仅测试环境用。先 cast 部署 MockERC721 再填入。
+  MockNftContractAddr: "${CHAIN_MOCK_NFT_ADDR:}"
+  PrivateKey: "${CHAIN_PRIVATE_KEY:0x1234567890abcdef1234567890abcdef12345678}"
+  AbiFile: "${CHAIN_ABI_FILE:internal/contract/NftAuctionUpgradeable.abi.json}"
+  MaxRetries: 3
+  RetryIntervalMs: 1000
+  TimeoutSec: 10
+  HealthCheckIntervalSec: 60
