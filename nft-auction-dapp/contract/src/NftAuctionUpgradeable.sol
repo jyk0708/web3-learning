@@ -139,13 +139,22 @@ contract NftAuctionUpgradeable is Initializable, ContextUpgradeable, UUPSUpgrade
     }
 
     /**
+     * @dev 所有者提议升级，设置 _pendingUpgradeImplementation 供 _authorizeUpgrade 校验
+     * @param newImplementation 新的实现合约地址
+     */
+    // function proposeUpgrade(address newImplementation) external onlyOwner {
+    //     require(newImplementation != address(0), "Invalid implementation address");
+    //     _pendingUpgradeImplementation = newImplementation;
+    // }
+
+    /**
      * @dev 授权升级提案
      * @param newImplementation 新的实现合约地址
      */
     function _authorizeUpgrade(address newImplementation) internal onlyOwner override {
-        require(_pendingUpgradeImplementation == newImplementation, "Upgrade must be approved by multi-sig proposal");
+        // require(_pendingUpgradeImplementation == newImplementation, "Upgrade must be approved by multi-sig proposal");
         // 清除授权标记，防止重放攻击
-	    _pendingUpgradeImplementation = address(0);
+	    // _pendingUpgradeImplementation = address(0);
     }
 
     /**
