@@ -289,12 +289,12 @@ func (s *ContractService) BidAuction(req *types.BidAuctionReq) (*types.BidAuctio
 	// 同步更新数据库：记录出价、更新拍卖最高出价
 	bidRepo := repository.NewBidRepository(s.svcCtx.DB)
 	bid := &model.Bid{
-		AuctionID:    req.AuctionId,
-		Bidder:       cc.Auth.From.Hex(),
-		BidAmount:    req.BidPrice,
-		BidPriceUSD:  req.BidPrice,
-		TxHash:       txHash,
-		BlockNumber:  receipt.BlockNumber.Uint64(),
+		AuctionID:   req.AuctionId,
+		Bidder:      cc.Auth.From.Hex(),
+		BidAmount:   req.BidPrice,
+		BidPriceUSD: req.BidPrice,
+		TxHash:      txHash,
+		BlockNumber: receipt.BlockNumber.Uint64(),
 	}
 	if err := bidRepo.Create(s.ctx, bid); err != nil {
 		s.Errorf("Failed to save bid to DB: %v", err)
@@ -414,5 +414,24 @@ func (s *ContractService) CancelAuction(req *types.CancelAuctionReq) (*types.Can
 
 	return &types.CancelAuctionData{
 		TxHash: txHash,
+	}, nil
+}
+
+/**
+ * @Description: 获取拍卖合约版本
+ * @return: 拍卖合约版本
+ */
+func (s *ContractService) GetVersion() (*types.GetVersionData, error) {
+	var results []any
+	err := s.svcCtx.ContractClient.Contract.Call(
+		&bind.CallOpts{Context: s.ctx},
+		&results,
+		"version",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &types.GetVersionData{
+		Version: results[0].(string),
 	}, nil
 }

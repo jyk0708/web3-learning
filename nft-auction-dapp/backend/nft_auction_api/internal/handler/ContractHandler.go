@@ -76,6 +76,14 @@ func SetPriceFeedHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		svcCtx, service.NewContractService, (*service.ContractService).SetPriceFeed)
 }
 
+/**
+ * 获取合约版本
+ */
+func GetVersionHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return HandleNoReq[types.GetVersionData](
+		svcCtx, service.NewContractService, (*service.ContractService).GetVersion)
+}
+
 // ==================== Mock 接口 ====================
 
 // MockNftHandler 生成 NFT 测试数据（mint + approve），返回可直接用于 CreateAuction 的参数

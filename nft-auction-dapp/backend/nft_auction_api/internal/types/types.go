@@ -151,3 +151,7 @@ type BidItem struct {
 	BlockNumber uint64 `json:"blockNumber"`
 	CreatedAt   string `json:"createdAt"`
 }
+
+type GetVersionData struct {
+	Version string `json:"version"`
+}

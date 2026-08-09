@@ -80,8 +80,8 @@ func (s *MockNftService) MockNft() (*types.MockNftData, error) {
 	tokenId := new(big.Int).SetUint64(uint64(time.Now().UnixNano()))
 
 	cc := s.svcCtx.ContractClient
-	backend := cc.Auth.From                          // 后端账户 = NFT owner = CreateAuction 的 msg.sender（只读模板，安全）
-	auction := cc.ContractAddr                       // 拍卖合约地址（被授权方）
+	backend := cc.Auth.From    // 后端账户 = NFT owner = CreateAuction 的 msg.sender（只读模板，安全）
+	auction := cc.ContractAddr // 拍卖合约地址（被授权方）
 
 	// 1. mint tokenId 给后端账户（TransactAndWaitMined 内部克隆 Auth + 等回执 + 查 revert 原因）
 	if _, _, err := cc.TransactAndWaitMined(s.ctx, mockBound, mockContract, "mint", "mint", backend, tokenId); err != nil {

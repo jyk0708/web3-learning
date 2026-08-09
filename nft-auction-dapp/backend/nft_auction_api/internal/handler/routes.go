@@ -61,6 +61,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/api/setPriceFeed",
 				Handler: SetPriceFeedHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/api/version",
+				Handler: GetVersionHandler(serverCtx),
+			},
 			// Mock 接口
 			{
 				Method:  http.MethodPost,
