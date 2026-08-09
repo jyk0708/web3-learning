@@ -214,5 +214,12 @@ pnpm install && pnpm dev
 
 
 
+# 合约升级
+```bash
+# 升级到 V2
+forge script script/UpgradeToV2.s.sol:DeployV2   --broadcast   --rpc-url $LOCAL_RPC_URL   --private-key $PRIVATE_KEY
+```
+
+
 
 
