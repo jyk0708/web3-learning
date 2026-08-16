@@ -1,0 +1,58 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+
+solc = "0.8.28"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+
+# Fuzzing
+[fuzz]
+runs = 10000
+
+# Invariant testing
+[invariant]
+runs = 128
+
+# RPC endpoints (使用环境变量)
+[rpc_endpoints]
+local = "${LOCAL_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"
+sepolia = "${SEPOLIA_RPC_URL}"
+holesky = "${HOLESKY_RPC_URL}"
+
+# Formatter
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+multiline_func_header = "params_first"
+quote_style = "double"
+number_underscore = "preserve"
+
+# 开发环境配置 - 优化调试速度
+[profile.dev]
+optimizer = false
+optimizer_runs = 0
+via_ir = false
+
+[profile.dev.fuzz]
+runs = 5000
+
+[profile.dev.invariant]
+runs = 64
+
+# 生产环境配置 - 全优化部署
+[profile.prod]
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+
+[profile.prod.fuzz]
+runs = 10000
+
+[profile.prod.invariant]
+runs = 128
